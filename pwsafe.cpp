@@ -114,6 +114,8 @@ typedef struct option long_option;
 #include <openssl/rand.h>
 #include <openssl/err.h>
 
+#include <sodium.h>
+
 #ifndef X_DISPLAY_MISSING
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -593,6 +595,11 @@ public:
 
 
 int main(int argc, char **argv) {
+
+  if (sodium_init() == -1 ) {
+    return 1;
+  }
+
   program_name = strrchr(argv[0], '/');
   if (!program_name)
     program_name = argv[0];
@@ -736,7 +743,7 @@ int main(int argc, char **argv) {
       // seed the random number generator
       char rng_filename[1024];
       if (RAND_file_name(rng_filename,sizeof(rng_filename))) {
-        int rc = RAND_load_file(rng_filename,-1);
+        int rc = RAND_load_file(rng_filename, -1);
         if (rc) {
           if (arg_verbose > 0) printf("rng seeded with %d bytes from %s\n", rc, rng_filename);
         } else {
@@ -1269,6 +1276,7 @@ static secstring random_password() {
 
       got_upper = false, got_lower = false, got_num = false, got_sym = false;
       for (int i=0; i<num_chars; i++) {
+      /**
         unsigned char idx;
         do {
           if (!RAND_bytes(&idx,1)) {
@@ -1277,7 +1285,10 @@ static secstring random_password() {
           }
           idx &= 0x7f; // might as well strip off the upper bit since total_chars is never more than 64, and such a stripping doesn't change the distribution
         } while (idx >= total_chars);
-        
+        */
+        // https://download.libsodium.org/doc/generating_random_data
+        // Pick a uniformly distributed number to be used as index to pick the password char from the arrays
+        const int idx = randombytes_uniform(total_chars);
         char c;
         if (idx < set0_chars)
           c = sets[0][idx];
@@ -2501,23 +2512,32 @@ void DB::Header::zero() {
 }
 
 bool DB::Header::create() {
+  randombytes_buf(random, sizeof(random));
+  randombytes_buf(salt, sizeof(salt));
+  randombytes_buf(iv, sizeof(iv));
+  /*
   if (!RAND_bytes(random, sizeof(random)) ||
       !RAND_bytes(salt, sizeof(salt)) ||
       !RAND_bytes(iv, sizeof(iv))) {
     fprintf(stderr,"Can't get random number: %s\n", ERR_error_string(ERR_get_error(), NULL));
     return false;
   }
+  */
   memset(hash,0,sizeof(hash));
   return true;
 }
 
 bool DB::Header::resalt() {
   // new salt, and new iv too while we are at it
+    randombytes_buf(salt, sizeof(salt));
+    randombytes_buf(iv, sizeof(iv));
+  /*
   if (!RAND_bytes(salt, sizeof(salt)) ||
       !RAND_bytes(iv, sizeof(iv))) {
     fprintf(stderr,"Can't get random number: %s\n", ERR_error_string(ERR_get_error(), NULL));
     return false;
   }
+  */
   return true;
 }
 
@@ -2768,10 +2788,13 @@ bool DB::Entry::write(FILE* f, DB::Context& c) const {
       // NOTE: instead of creating a per-rfc UUID which includes hardware-identificators like your 1st NIC's MAC address, 
       // I make it completely random. I like this better, and given the size of the UUID collisions won't be a problem.
       unsigned char buf[16];
+      randombytes_buf(buf, sizeof(buf));
+      /*
       if (!RAND_bytes(buf,sizeof(buf))) {
         fprintf(stderr, "Can't get random data: %s\n", ERR_error_string(ERR_get_error(), NULL));
         throw FailEx();
       }
+      */
       save_uuid.assign(reinterpret_cast<const char*>(buf),sizeof(buf));
       memset(buf,0,sizeof(buf));
     }
