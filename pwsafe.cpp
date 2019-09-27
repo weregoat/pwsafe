@@ -741,6 +741,7 @@ int main(int argc, char **argv) {
  
 
       // seed the random number generator
+      /*
       char rng_filename[1024];
       if (RAND_file_name(rng_filename,sizeof(rng_filename))) {
         int rc = RAND_load_file(rng_filename, -1);
@@ -754,6 +755,7 @@ int main(int argc, char **argv) {
         if (arg_verbose >= -1)
           fprintf(stderr, "WARNING: %s unable to seed rng. Check $RANDFILE.\n", program_name);
       }
+      */
 
 #ifndef X_DISPLAY_MISSING
       if (arg_verbose >= 0 && (arg_password || arg_username) && (arg_echo || arg_xclip))
@@ -850,11 +852,13 @@ int main(int argc, char **argv) {
       }
 
       // save the rng seed for next time
+      /*
       if (rng_filename[0]) {
         int rc = RAND_write_file(rng_filename);
         if (arg_verbose > 0) printf("wrote %d bytes to %s\n", rc, rng_filename);
       } // else they already got an error above when we tried to read rng_filename
-   
+        */
+
       // and we are done
       throw ExitEx(0);
       
